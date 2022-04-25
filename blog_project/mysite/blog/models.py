@@ -1,7 +1,7 @@
 from random import choices
 from django.db import models
 from django.utils import timezone
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.contrib.auth.models import User
 
 # Create your models here.
@@ -31,7 +31,13 @@ class Post(models.Model):
                               default='draft')
 
     objects = models.Manager()
-    published = PublishedManager()
+    objects_published = PublishedManager()
+
+    class Meta:
+        ordering = ('-publish',)
+
+    def __str__(self):
+        return str(self.title)
 
     def get_absolute_url(self):
         return reverse('blog:post_detail', 
@@ -39,9 +45,3 @@ class Post(models.Model):
                               self.publish.month,
                               self.publish.day,
                               self.slug])
-
-    class Meta:
-        ordering = ('-publish',)
-
-    def __str__(self):
-        return str(self.title)
