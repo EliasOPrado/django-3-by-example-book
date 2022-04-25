@@ -24,26 +24,25 @@ def post_detail(request, year, month, day, post):
 
 
 def post_share(request, post_id):
-    # Acquire the post based on id.
+    # Retrieve post by id
     post = get_object_or_404(Post, id=post_id, status='published')
     sent = False
 
     if request.method == 'POST':
-        # form was submitted.
+        # Form was submitted
         form = EmailPostForm(request.POST)
         if form.is_valid():
-            # Form fields are validated.
+            # Form fields passed validation
             cd = form.cleaned_data
-            post_url = request.build_absolute_uri(
-                post.get_absolute_url()
-            )
-            subject = f"{cd['name']} recomends you read "\
-                      f"{post.title}"
-            message = f"Read {post.title} at {post_url}\n\n"\
+            post_url = request.build_absolute_uri(post.get_absolute_url())
+            subject = f"{cd['name']} recommends you read {post.title}"
+            message = f"Read {post.title} at {post_url}\n\n" \
                       f"{cd['name']}\'s comments: {cd['comments']}"
-            send_mail(subject, message, 'admin@myblog.com')
+            send_mail(subject, message, 'admin@myblog.com', [cd['to']])
+            sent = True
 
-        else:
-            form = EmailPostForm()
-        context = {'post':post, 'form':form}
-        return render(request, 'blog/post/share.html', context)
+    else:
+        form = EmailPostForm()
+    return render(request, 'blog/post/share.html', {'post': post,
+                                                    'form': form,
+                                                    'sent': sent})
