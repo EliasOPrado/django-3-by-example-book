@@ -1,17 +1,14 @@
-
-   
-from django.db.models import Count
-from django.shortcuts import render, get_object_or_404
-from django.core.paginator import Paginator, EmptyPage,\
-                                PageNotAnInteger
-from django.contrib.postgres.search import SearchVector
+from django.contrib.postgres.search import (SearchQuery, SearchRank,
+                                            SearchVector, TrigramSimilarity)
 from django.core.mail import send_mail
-from django.views.generic import ListView
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count
-from .models import Post, Comment
-from .forms import EmailPostForm, CommentForm, SearchForm
+from django.shortcuts import get_object_or_404, render
+from django.views.generic import ListView
 from taggit.models import Tag
 
+from .forms import CommentForm, EmailPostForm, SearchForm
+from .models import Comment, Post
 
 
 # Create your views here.
@@ -23,8 +20,8 @@ def post_list(request, tag_slug=None):
         tag = get_object_or_404(Tag, slug=tag_slug)
         object_list = object_list.filter(tags__in=[tag])
 
-    paginator = Paginator(object_list, 3) # 3 posts in each page
-    page = request.GET.get('page')
+    paginator = Paginator(object_list, 3)  # 3 posts in each page
+    page = request.GET.get("page")
     try:
         posts = paginator.page(page)
     except PageNotAnInteger:
@@ -33,11 +30,10 @@ def post_list(request, tag_slug=None):
     except EmptyPage:
         # If page is out of range deliver last page of results
         posts = paginator.page(paginator.num_pages)
-    return render(request,
-                 'blog/post/list.html',
-                 {'page': page,
-                  'posts': posts,
-                  'tag': tag})
+    return render(
+        request, "blog/post/list.html", {"page": page, "posts": posts, "tag": tag}
+    )
+
 
 class PostListView(ListView):
     queryset = Post.objects_published.all()
@@ -73,19 +69,20 @@ def post_detail(request, year, month, day, post):
     else:
         comment_form = CommentForm()
 
-
-        # similar list of posts
-        post_tags_ids = post.tags.values_list('id', flat=True)
-        similar_posts = Post.objects_published.filter(tags__in=post_tags_ids)\
-                                        .exclude(id=post.id)
-        similar_posts = similar_posts.annotate(same_tags=Count('tags'))\
-                                        .order_by('-same_tags', '-publish')[:4]
+        # similar list of posts
+        post_tags_ids = post.tags.values_list("id", flat=True)
+        similar_posts = Post.objects_published.filter(tags__in=post_tags_ids).exclude(
+            id=post.id
+        )
+        similar_posts = similar_posts.annotate(same_tags=Count("tags")).order_by(
+            "-same_tags", "-publish"
+        )[:4]
         context = {
             "post": post,
             "comments": comments,
             "new_comment": new_comment,
             "comment_form": comment_form,
-            "similar_posts":similar_posts,
+            "similar_posts": similar_posts,
         }
         return render(request, "blog/post/detail.html", context)
 
@@ -121,16 +118,20 @@ def post_search(request):
     form = SearchForm()
     query = None
     results = []
-    if 'query' in request.GET:
+    if "query" in request.GET:
         form = SearchForm(request.GET)
         if form.is_valid():
-            query = form.cleaned_data['query']
-            results = Post.objects_published.annotate(
-                search=SearchVector('title', 'body'),
-            ).filter(search=query)
-    context = {
-        'form':form,
-        'query':query,
-        'results':results
-    }
-    return render(request, 'blog/post/search.html', context)
+            query = form.cleaned_data["query"]
+            search_vector = SearchVector("title", weight="A") + SearchVector(
+                "body", weight="B"
+            )
+            search_query = SearchQuery(query)
+            results = (
+                Post.objects_published.annotate(
+                    search=search_vector, rank=SearchRank(search_vector, search_query)
+                )
+                .filter(rank__gte=0.3)
+                .order_by("-rank")
+            )
+    context = {"form": form, "query": query, "results": results}
+    return render(request, "blog/post/search.html", context)
