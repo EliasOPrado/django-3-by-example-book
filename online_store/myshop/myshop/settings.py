@@ -120,6 +120,8 @@ USE_TZ = True
 
 CART_SESSION_ID = 'cart'
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
