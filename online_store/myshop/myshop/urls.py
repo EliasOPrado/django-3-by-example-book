@@ -22,7 +22,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # this need to be at the top.
     path('cart/', include('cart.urls', namespace='cart')),
-    path('create/', include('orders.urls', namespace='orders')),
+    path('create/', include('payment.urls', namespace='payment')),
+    path('payment/', include('shop.urls', namespace='shop')),
     path('', include('shop.urls', namespace='shop'))
 ]
 
